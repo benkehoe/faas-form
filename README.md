@@ -100,3 +100,12 @@ faas-form admin rm FUNCTION_NAME
 ```
 
 Remove the tag marking the given function as a `faas-form`-compatible Lambda. Note this does not work with Lambdas marked using environment variables.
+
+## Status
+
+Currently in a workiing state with Python 3. Working on tests before adding more functionality. Desired features:
+
+* Lists of strings
+* Required vs. optional inputs
+* Ctrl-D to input null
+* Ensure Python 2 compatibility

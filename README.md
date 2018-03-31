@@ -6,7 +6,7 @@ A command line tool invoking self-describing Lambda functions.
 
 A `faas-form`-compatible Lambda function is one that can report a simple schema for its input. When invoked with an event of the form:
 
-```json
+```
 {
   "x-faas-form-request": "schema"
 }
@@ -16,7 +16,7 @@ This can be tested for in the handler with the `faas_form.is_schema_request(even
 
 The Lambda must return an object that looks like:
 
-```json
+```
 {
   "x-faas-form-schema": {
     "instructions": <optional description to print before user input>,
@@ -32,7 +32,7 @@ Each input corresponds to a field in the event object that the Lambda expects. E
 The client then prompts the user for values for the inputs, assembles them into an object and invokes the Lambda, including the field `"x-faas-form-request": "invoke"` in the request. This can be tested for in the handler with the `faas_form.is_invoke_request(event)` function.
 
 ### String inputs
-```json
+```
 {
   "type": "string",
   "name": <input name>,
@@ -44,7 +44,7 @@ The client then prompts the user for values for the inputs, assembles them into 
 The default value, if given, will be used when the user inputs an empty string.
 
 ### Secret inputs
-```json
+```
 {
   "type": "secret",
   "name": <input name>,
@@ -55,7 +55,7 @@ The default value, if given, will be used when the user inputs an empty string.
 Like the string input, but will not echo when prompting the user, and does not accept a default.
 
 ### Number inputs
-```json
+```
 {
   "type": "number",
   "name": <input name>,

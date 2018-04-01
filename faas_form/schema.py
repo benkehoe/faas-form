@@ -21,16 +21,11 @@ __all__ = [
     'NumberInput',
 ]
 
-class MissingSchemaError(Exception):
-    pass
-
 class SchemaError(ValueError):
     pass
 
 class Schema(object):
     INPUT_REGISTRY = {}
-    
-    KEY = 'x-faas-form-schema'
     
     @classmethod
     def _input_from_json(cls, obj):
@@ -42,14 +37,13 @@ class Schema(object):
     
     @classmethod
     def from_json(cls, obj):
-        if cls.KEY not in obj:
-            raise MissingSchemaError
+        if 'inputs' not in obj:
+            raise SchemaError('Missing inputs')
         
-        obj = obj[cls.KEY]
         instructions = obj.get('instructions')
         
         inputs = []
-        for input_obj in obj.get('inputs', []):
+        for input_obj in obj['inputs']:
             inputs.append(cls._input_from_json(input_obj))
         
         return cls(inputs, instructions=instructions)
@@ -64,9 +58,7 @@ class Schema(object):
         }
         if self.instructions:
             obj['instructions'] = self.instructions
-        return {
-            self.key: obj,
-        }
+        return obj
     
     def get_values(self):
         if self.instructions:
@@ -75,6 +67,12 @@ class Schema(object):
         for input_obj in self.inputs:
             values[input_obj.name] = input_obj.get_value()
         return values
+    
+    def __repr__(self):
+        instructions_str = ''
+        if self.instructions:
+            instructions_str = ',instructions={!r}'.format(self.instructions)
+        return 'Schema({!r}{})'.format(self.inputs, instructions_str)
 
 @six.add_metaclass(ABCMeta)
 class Input(object):
@@ -138,7 +136,7 @@ class Input(object):
         obj = {
             'name': self.name,
         }
-        for field in ['required', 'default', 'help'] + args:
+        for field in ['required', 'default', 'help'] + list(args):
             value = getattr(self, field)
             if value is not None:
                 obj[field] = value
@@ -190,6 +188,17 @@ class Input(object):
                 continue
             break
         return value
+    
+    def __repr__(self):
+        json_value = self.to_json()
+        kwargs = [
+            'name='+repr(json_value['name']),
+        ]
+        for key, value in json_value.items():
+            if key in ['name', 'type']:
+                continue
+            kwargs.append('{}={!r}'.format(key, value))
+        return '{}({})'.format(self.__class__.__name__, ','.join(kwargs))
 
 class StringInput(Input):
     @classmethod

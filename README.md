@@ -1,6 +1,9 @@
 # faas-form
 
-A command line tool invoking self-describing Lambda functions. It is intended to help developers provide an interface to Lambdas that are created to be invoked directly by users. It does not aim to support arbitrarily complex input schemas, but it does support multi-step workflows.
+A command line tool invoking self-describing Lambda functions.
+It is intended to help developers and administrators provide interfaces to Lambdas that are designed to be invoked directly by users.
+This allows Lambda functions to replace client-side scripts for interactions with resources running on AWS.
+It does not aim to support arbitrarily complex input schemas, but it does support multi-step workflows.
 
 ## Creation
 
@@ -29,13 +32,17 @@ The Lambda must return an object that looks like:
 
 Each input corresponds to a field in the event object that the Lambda expects. Each input has a name, corresponding to the field name, a input type, and an optional help field to display when prompting the user for a value.
 
-The client then prompts the user for values for the inputs, assembles them into an object and invokes the Lambda, including the field `"x-faas-form-payload": "invoke"` in the request. This can be tested for in the handler with the `faas_form.is_invoke_request(event)` function.
+The client then prompts the user for values for the inputs, assembles them into an object and invokes the Lambda, including the field `"x-faas-form-payload": "invoke"` in the request.
+This can be tested for in the handler with the `faas_form.is_invoke_request(event)` function.
 
-The Lambda processes the event, and returns a result to the client. Normally, the client will print the result object, but if the Lambda wants to control this output, it can set the field `x-faas-form-result` in the result object, and this will be printed instead. This can also be set using `faas_form.set_result(response)`.
+The Lambda processes the event, and returns a result to the client. Normally, the client will print the result object, but if the Lambda wants to control this output, it can set the field `x-faas-form-result` in the result object, and this will be printed instead.
+This can also be set using `faas_form.set_result(response)`.
 
 ### Multi-step workflows
 
-After the first invocation, the Lambda can re-prompt the user for more input. In the result object it returns, it can set the field `"x-faas-form-payload": "reinvoke"` (or using `faas_form.set_reinvoke_response(response)`), and then must also include a schema (under `x-faas-form-schema`). The client will prompt the user with the new schema, and invoke the Lambda with the data. The `const` input type can be useful in the scenario for keeping state between requests or to track the steps in the process.
+After the first invocation, the Lambda can re-prompt the user for more input. In the result object it returns, it can set the field `"x-faas-form-payload": "reinvoke"` (or using `faas_form.set_reinvoke_response(response)`), and then must also include a schema (under `x-faas-form-schema`).
+The client will prompt the user with the new schema, and invoke the Lambda with the data.
+The `const` input type can be useful in the scenario for keeping state between requests or to track the steps in the process.
 
 ### Input types
 
@@ -93,7 +100,9 @@ Like the string input, but will not echo when prompting the user, and does not a
 
 ## Tagging
 
-`faas-form`-compatible Lambdas can be made discoverable through two mechanisms: a resource tag on the Lambda or an entry in the Lambda's environment variables. In either case, the key must be `faasform` and the value is an optional short description. The environment variable form is available for situations where tagging is not desired.
+`faas-form`-compatible Lambdas can be made discoverable through two mechanisms: a resource tag on the Lambda or an entry in the Lambda's environment variables.
+In either case, the key must be `faasform` and the value is an optional short description.
+The environment variable form is available for situations where tagging is not desired.
 
 ## Usage
 

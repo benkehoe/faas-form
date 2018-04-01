@@ -13,15 +13,17 @@ import json
 import sys
 
 from . import faas
-from .schema import MissingSchemaError, Schema
-from .payloads import is_reinvoke_response, get_result, _strip_payload
+from .schema import Schema
+from . import payloads
 
 def main(args=None):
     parser = argparse.ArgumentParser()
     
     subparsers = parser.add_subparsers()
     
-    list_parser = subparsers.add_parser('list', aliases=['ls'], help='Find faas-form compatible functions')
+    kwargs = {'aliases':['list']} if six.PY3 else {}
+    kwargs['help'] = 'Find faas-form compatible functions'
+    list_parser = subparsers.add_parser('ls', **kwargs)
     list_parser.add_argument('--tags', action='store_true', default=None, help='Search tags')
     list_parser.add_argument('--env', action='store_true', default=None, help='Search env vars')
     list_parser.set_defaults(func=list_funcs)
@@ -71,7 +73,7 @@ def invoke(parser, args):
     
     try:
         schema = func.get_schema() # :type schema: faas_form.schema.Schema
-    except MissingSchemaError as e:
+    except payloads.MissingSchemaError as e:
         err_msg = 'ERROR: No schema returned by the function'
         sys.exit(err_msg)
     
@@ -87,27 +89,28 @@ def invoke(parser, args):
             
             payload = json.load(response['Payload'])
             
-            result = get_result(payload)
+            result = payloads.get_result(payload)
             if result is not None:
                 print('Result:')
                 print(result)
             else:
-                payload_to_print = json.dumps(_strip_payload(payload), indent=2)
+                payload_to_print = json.dumps(payloads._strip_payload(payload), indent=2)
                 print('Response:')
                 print(payload_to_print)
             
-            if not is_reinvoke_response(payload):
+            if not payloads.is_reinvoke_response(payload):
                 break
             
-            schema = Schema.from_json(payload)
+            schema = Schema.from_json(payloads.get_schema(payload))
         except Exception as e:
             err_msg = 'ERROR: {}'.format(e)
             sys.exit(err_msg)
 
 def prompt(parser, args):
     schema = json.loads(args.schema)
-    if Schema.KEY not in schema:
-        schema  = {Schema.KEY: schema}
+    
+    if payloads.SCHEMA_KEY in schema:
+        schema  = schema[payloads.SCHEMA_KEY]
     schema = Schema.from_json(schema)
     
     try:

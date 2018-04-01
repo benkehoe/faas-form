@@ -118,32 +118,34 @@ class FaaSFunction(object):
     def get_schema(self):
         client = self.session.client('lambda')
         
-        payload = {}
-        payloads.set_schema_request(payload)
+        request_payload = {}
+        payloads.set_schema_request(request_payload)
         
         response = client.invoke(
             FunctionName=self.id,
             InvocationType='RequestResponse',
-            Payload=json.dumps(payload),
+            Payload=json.dumps(request_payload),
         )
         
         response_payload = json.load(response['Payload'])
         
-        return Schema.from_json(response_payload)
+        schema = payloads.get_schema(response_payload)
+        
+        return Schema.from_json(schema)
     
     def invoke(self, values):
         client = self.session.client('lambda')
         
-        payload = {}
-        payloads.set_invoke_request(payload)
+        request_payload = {}
+        payloads.set_invoke_request(request_payload)
         
-        payload.update(values)
+        request_payload.update(values)
         
         response = client.invoke(
             FunctionName=self.id,
             InvocationType='RequestResponse',
             LogType='Tail',
-            Payload=json.dumps(payload),
+            Payload=json.dumps(request_payload),
         )
         
         return response

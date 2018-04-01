@@ -103,6 +103,7 @@ def invoke(parser, args):
             
             schema = Schema.from_json(payloads.get_schema(payload))
         except Exception as e:
+            raise #TODO: only print stack trace if verbose requested in args
             err_msg = 'ERROR: {}'.format(e)
             sys.exit(err_msg)
 

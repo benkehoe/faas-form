@@ -1,0 +1,13 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+
+Resources:
+  FaaSFormExampleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: faas-form-example
+      CodeUri: .
+      Runtime: python3.6
+      Handler: example_lambda.handler
+      Tags:
+        faasform: "an example faas-form compatible lambda function"

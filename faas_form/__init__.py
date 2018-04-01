@@ -29,5 +29,5 @@ client:
 
 from __future__ import absolute_import, print_function
 
-from .requests import is_schema_request, is_invoke_request
+from faas_form.payloads import is_schema_request, is_invoke_request, set_reinvoke_response, set_result
 from .schema import *

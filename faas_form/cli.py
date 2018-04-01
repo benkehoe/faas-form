@@ -13,29 +13,39 @@ import json
 import sys
 
 from . import faas
-from .schema import MissingSchemaError
+from .schema import MissingSchemaError, Schema
+from .payloads import is_reinvoke_response, get_result, _strip_payload
 
 def main(args=None):
     parser = argparse.ArgumentParser()
     
     subparsers = parser.add_subparsers()
     
-    list_parser = subparsers.add_parser('list', aliases=['ls'])
-    list_parser.add_argument('--tags', action='store_true', default=None)
-    list_parser.add_argument('--env', action='store_true', default=None)
+    list_parser = subparsers.add_parser('list', aliases=['ls'], help='Find faas-form compatible functions')
+    list_parser.add_argument('--tags', action='store_true', default=None, help='Search tags')
+    list_parser.add_argument('--env', action='store_true', default=None, help='Search env vars')
     list_parser.set_defaults(func=list_funcs)
     
-    invoke_parser = subparsers.add_parser('invoke')
-    invoke_parser.add_argument('name')
+    invoke_parser = subparsers.add_parser('invoke', help='Call a faas-form compatible function')
+    invoke_parser.add_argument('name', help='The function to invoke')
     invoke_parser.set_defaults(func=invoke)
     
-    admin_parser = subparsers.add_parser('admin')
+    prompt_parser = subparsers.add_parser('prompt', help='Generate an event from a schema')
+    prompt_parser.add_argument('schema')
+    prompt_parser.add_argument('--output-file', '-o', type=argparse.FileType('w'))
+    prompt_parser.set_defaults(func=prompt)
+    
+    admin_parser = subparsers.add_parser('admin', help='Tag functions as faas-form compatible')
     admin_parser.add_argument('command', choices=['add', 'remove', 'rm'])
     admin_parser.add_argument('name')
     admin_parser.add_argument('--description')
     admin_parser.set_defaults(func=admin)
     
     args = parser.parse_args(args=args)
+    
+    if not hasattr(args, 'func'):
+        parser.print_usage()
+        parser.exit(1)
     
     return args.func(parser, args)
 
@@ -65,18 +75,51 @@ def invoke(parser, args):
         err_msg = 'ERROR: No schema returned by the function'
         sys.exit(err_msg)
     
-    values = schema.prompt()
+    while True:
+        try:
+            values = schema.get_values()
+        except KeyboardInterrupt:
+            print('')
+            sys.exit(1)
+        
+        try:
+            response = func.invoke(values)
+            
+            payload = json.load(response['Payload'])
+            
+            result = get_result(payload)
+            if result is not None:
+                print('Result:')
+                print(result)
+            else:
+                payload_to_print = json.dumps(_strip_payload(payload), indent=2)
+                print('Response:')
+                print(payload_to_print)
+            
+            if not is_reinvoke_response(payload):
+                break
+            
+            schema = Schema.from_json(payload)
+        except Exception as e:
+            err_msg = 'ERROR: {}'.format(e)
+            sys.exit(err_msg)
+
+def prompt(parser, args):
+    schema = json.loads(args.schema)
+    if Schema.KEY not in schema:
+        schema  = {Schema.KEY: schema}
+    schema = Schema.from_json(schema)
     
     try:
-        response = func.invoke(values)
-        
-        payload = json.load(response['Payload'])
-        
-        print('Response:')
-        print(json.dumps(payload, indent=2))
-    except Exception as e:
-        err_msg = 'ERROR: {}'.format(e)
-        sys.exit(err_msg)
+        values = schema.get_values()
+    except KeyboardInterrupt:
+        print('')
+        sys.exit(1)
+    
+    if args.output_file:
+        json.dump(values, args.output_file, indent=2)
+    else:
+        print(json.dumps(values, indent=2))
 
 def admin(parser, args):
     if args.command in ['add']:

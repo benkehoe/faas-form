@@ -14,45 +14,7 @@ from unittest import mock
 
 from faas_form import schema
 
-SCHEMA_JSON = {
-    'x-faas-form-schema': {
-        'description': 'some description',
-        'inputs': [
-            
-            {
-                'name': 'secret_input_1',
-                'type': 'secret',
-            },
-            {
-                'name': 'number_input_1',
-                'type': 'number',
-            },
-            {
-                'name': 'pattern_input_1',
-                'type': 'string',
-                'pattern': '^[^A-Z]+$',
-                'help': 'no capitals',
-            }
-        ]
-    }
-}
-
-
-
 DEFAULT_VALUE_STRING = 'default_string_value'
-
-INPUT_INVALID_NO_NAME = {
-    'type': 'string',
-}
-
-INPUT_INVALID_NO_TYPE = {
-    'name': 'invalid_input_no_type',
-}
-
-INPUT_INVALID_BAD_TYPE = {
-    'name': 'invalid_input_bad_type',
-    'type': 'bad_type',
-}
 
 INPUT_STRING_1 = {
     'name': 'string_input_1',
@@ -89,50 +51,6 @@ INPUT_STRING_REQUIRED_WITH_DEFAULT = {
     'required': True,
     'default': DEFAULT_VALUE_STRING,
 }
-
-INPUT_SECRET_1 = {
-    'name': 'secret_schema_1',
-    'type': 'secret',
-}
-
-INPUT_SECRET_WITH_DEFAULT = {
-    'name': 'secret_schema_with_default',
-    'type': 'secret',
-    'default': DEFAULT_VALUE_STRING,
-}
-
-DEFAULT_VALUE_NUMBER = 2.7
-
-INPUT_NUMBER_1 = {
-    'name': 'number_input_1',
-    'type': 'number',
-}
-
-INPUT_NUMBER_WITH_DEFAULT = {
-    'name': 'number_input_with_default',
-    'type': 'number',
-    'default': DEFAULT_VALUE_NUMBER,
-}
-
-class SchemaTest(unittest.TestCase):
-    def test_input_from_json(self):
-        si = schema.Schema._input_from_json(INPUT_STRING_1)
-        self.assertIsInstance(si, schema.StringInput)
-        
-        si = schema.Schema._input_from_json(INPUT_SECRET_1)
-        self.assertIsInstance(si, schema.SecretInput)
-        
-        si = schema.Schema._input_from_json(INPUT_NUMBER_1)
-        self.assertIsInstance(si, schema.NumberInput)
-        
-        with self.assertRaises(schema.SchemaError):
-            schema.Schema._input_from_json(INPUT_INVALID_NO_NAME)
-        
-        with self.assertRaises(schema.SchemaError):
-            schema.Schema._input_from_json(INPUT_INVALID_NO_TYPE)
-        
-        with self.assertRaises(schema.SchemaError):
-            schema.Schema._input_from_json(INPUT_INVALID_BAD_TYPE)
 
 class StringInputTest(unittest.TestCase):
     def test_from_json(self):
@@ -241,17 +159,40 @@ class StringInputTest(unittest.TestCase):
         self.assertEqual(value, DEFAULT_VALUE_STRING)
         self.assertEqual(mock_input.call_count, 1)
 
+INPUT_SECRET_1 = {
+    'name': 'secret_schema_1',
+    'type': 'secret',
+}
+
+INPUT_SECRET_WITH_DEFAULT = {
+    'name': 'secret_schema_with_default',
+    'type': 'secret',
+    'default': DEFAULT_VALUE_STRING,
+}
+
 class SecretInputTest(unittest.TestCase):
     def test_from_json(self):
         schema.SecretInput.from_json(INPUT_SECRET_1)
         with self.assertRaises(schema.SchemaError):
             schema.SecretInput.from_json(INPUT_SECRET_WITH_DEFAULT)
 
+DEFAULT_VALUE_NUMBER = 2.7
+
+INPUT_NUMBER_1 = {
+    'name': 'number_input_1',
+    'type': 'number',
+}
+
+INPUT_NUMBER_WITH_DEFAULT = {
+    'name': 'number_input_with_default',
+    'type': 'number',
+    'default': DEFAULT_VALUE_NUMBER,
+}
+
 class NumberInputTest(unittest.TestCase):
     def test_from_json(self):
         schema.NumberInput.from_json(INPUT_NUMBER_1)
         schema.NumberInput.from_json(INPUT_NUMBER_WITH_DEFAULT)
-        
     
     def test_prompt(self):
         input_values = ['1', '2']
@@ -281,3 +222,133 @@ class NumberInputTest(unittest.TestCase):
         
         self.assertEqual(value, DEFAULT_VALUE_NUMBER)
         self.assertEqual(mock_input.call_count, 1)
+
+DEFAULT_VALUE_STRINGLIST = ['a', 'b', 'c']
+
+INPUT_STRINGLIST_1 = {
+    'name': 'stringlist_1',
+    'type': 'list<string>',
+}
+
+INPUT_STRINGLIST_WITH_SIZE = {
+    'name': 'stringlist_with_default',
+    'type': 'list<string>',
+    'size': 3,
+}
+
+INPUT_STRINGLIST_WITH_PATTERN = {
+    'name': 'stringlist_with_pattern',
+    'type': 'list<string>',
+    'pattern': r'^[^A-Z]+$',
+}
+
+class StringListTest(unittest.TestCase):
+    def test_from_json(self):
+        schema.StringListInput.from_json(INPUT_STRINGLIST_1)
+        schema.StringListInput.from_json(INPUT_STRINGLIST_WITH_SIZE)
+        schema.StringListInput.from_json(INPUT_STRINGLIST_WITH_PATTERN)
+    
+    def test_prompt(self):
+        input_values = ['a', 'b', 'c', '', Exception()]
+        
+        with mock.patch.object(schema.StringListInput, '_input', side_effect=input_values) as mock_input:
+            si = schema.StringListInput.from_json(INPUT_STRINGLIST_1)
+            value = si.get_value()
+        
+        self.assertEqual(value, ['a', 'b', 'c'])
+        self.assertEqual(mock_input.call_count, 4)
+        
+        input_values = ['a', 'b', 'c', EOFError(), Exception()]
+        
+        with mock.patch.object(schema.StringListInput, '_input', side_effect=input_values) as mock_input:
+            si = schema.StringListInput.from_json(INPUT_STRINGLIST_1)
+            value = si.get_value()
+        
+        self.assertEqual(value, ['a', 'b', 'c'])
+        self.assertEqual(mock_input.call_count, 4)
+    
+    def test_prompt_size(self):
+        size = 3
+        input_values = ['a', 'b', 'c', '', Exception()]
+        
+        with mock.patch.object(schema.StringListInput, '_input', side_effect=input_values) as mock_input:
+            si = schema.StringListInput.from_json(INPUT_STRINGLIST_WITH_SIZE)
+            value = si.get_value()
+        
+        self.assertEqual(value, ['a', 'b', 'c'])
+        self.assertEqual(mock_input.call_count, 3)
+        
+        size = 3
+        input_values = ['a', 'b', '', 'c', Exception()]
+        
+        with mock.patch.object(schema.StringListInput, '_input', side_effect=input_values) as mock_input:
+            si = schema.StringListInput.from_json(INPUT_STRINGLIST_WITH_SIZE)
+            value = si.get_value()
+        
+        self.assertEqual(value, ['a', 'b', 'c'])
+        self.assertEqual(mock_input.call_count, 4)
+        
+        size = 3
+        input_values = ['a', 'b', EOFError(), 'c', Exception()]
+        
+        with mock.patch.object(schema.StringListInput, '_input', side_effect=input_values) as mock_input:
+            si = schema.StringListInput.from_json(INPUT_STRINGLIST_WITH_SIZE)
+            value = si.get_value()
+        
+        self.assertEqual(value, ['a', 'b', 'c'])
+        self.assertEqual(mock_input.call_count, 4)
+    
+    def test_prompt_with_pattern(self):
+        input_values = ['a', 'b', 'c', EOFError(), Exception()]
+        
+        with mock.patch.object(schema.StringListInput, '_input', side_effect=input_values) as mock_input:
+            si = schema.StringListInput.from_json(INPUT_STRINGLIST_WITH_PATTERN)
+            value = si.get_value()
+        
+        self.assertEqual(value, ['a', 'b', 'c'])
+        self.assertEqual(mock_input.call_count, 4)
+        
+        input_values = ['a', 'b', 'C', 'c', EOFError(), Exception()]
+        
+        with mock.patch.object(schema.StringListInput, '_input', side_effect=input_values) as mock_input:
+            si = schema.StringListInput.from_json(INPUT_STRINGLIST_WITH_PATTERN)
+            value = si.get_value()
+        
+        self.assertEqual(value, ['a', 'b', 'c'])
+        self.assertEqual(mock_input.call_count, 5)
+
+INPUT_INVALID_NO_NAME = {
+    'type': 'string',
+}
+
+INPUT_INVALID_NO_TYPE = {
+    'name': 'invalid_input_no_type',
+}
+
+INPUT_INVALID_BAD_TYPE = {
+    'name': 'invalid_input_bad_type',
+    'type': 'bad_type',
+}
+
+class SchemaTest(unittest.TestCase):
+    def test_input_from_json(self):
+        si = schema.Schema._input_from_json(INPUT_STRING_1)
+        self.assertIsInstance(si, schema.StringInput)
+        
+        si = schema.Schema._input_from_json(INPUT_SECRET_1)
+        self.assertIsInstance(si, schema.SecretInput)
+        
+        si = schema.Schema._input_from_json(INPUT_NUMBER_1)
+        self.assertIsInstance(si, schema.NumberInput)
+        
+        si = schema.Schema._input_from_json(INPUT_STRINGLIST_1)
+        self.assertIsInstance(si, schema.StringListInput)
+        
+        with self.assertRaises(schema.SchemaError):
+            schema.Schema._input_from_json(INPUT_INVALID_NO_NAME)
+        
+        with self.assertRaises(schema.SchemaError):
+            schema.Schema._input_from_json(INPUT_INVALID_NO_TYPE)
+        
+        with self.assertRaises(schema.SchemaError):
+            schema.Schema._input_from_json(INPUT_INVALID_BAD_TYPE)

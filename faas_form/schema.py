@@ -91,9 +91,10 @@ class Input(object):
             raise SchemaError("Name is required")
         kwargs = {
             'name': obj['name'],
-            'required': obj.get('required'),
-            'help': obj.get('help'),
         }
+        for field in ['required', 'help']:
+            if field in obj:
+                kwargs[field] = obj[field]
         if cls.default_allowed():
             kwargs['default'] = obj.get('default')
         elif 'default' in obj:
@@ -119,6 +120,7 @@ class Input(object):
         self._required = required
         self.help = help
         
+        self.default = None
         if self.default_allowed():
             self.default = default
         elif default is not None:
@@ -157,7 +159,7 @@ class Input(object):
         parts = []
         if self._required is not None or self.required:
             parts.append('required={}'.format(self.required))
-        if self.default is not None:
+        if self.default_allowed() and self.default is not None:
             parts.append('default={}'.format(self.default))
         return parts
     
@@ -169,7 +171,7 @@ class Input(object):
             parts.append(' {}'.format(self.help))
         properties = self._properties_for_prompt()
         if properties:
-            parts.append(' {}'.format(', '.join(properties)))
+            parts.append(' ({})'.format(', '.join(properties)))
         parts.append(': ')
         return ''.join(parts)
     
@@ -179,6 +181,7 @@ class Input(object):
             try:
                 value = self._get_value(prompt)
             except EOFError:
+                print('')
                 value = None
             if value is None and self.default is not None:
                 value = self.default
@@ -279,8 +282,13 @@ class StringListInput(Input):
         return 'list<string>'
     
     @classmethod
+    def default_allowed(cls):
+        return False
+    
+    @classmethod
     def from_json(cls, obj):
         kwargs = cls._get_base_kwargs_from_json(obj)
+        kwargs['pattern'] = obj.get('pattern')
         kwargs['size'] = obj.get('size')
         return cls(**kwargs)
     
@@ -288,6 +296,7 @@ class StringListInput(Input):
                  required=None,
                  default=None,
                  help=None,
+                 pattern=None,
                  size=None,):
         super(StringListInput, self).__init__(
             name,
@@ -295,17 +304,18 @@ class StringListInput(Input):
             default=default,
             help=help)
         
+        self.pattern = pattern
         self.size = size
     
     def to_json(self):
-        return self._base_to_json('size')
+        return self._base_to_json('pattern', 'size')
     
     @property
     def minimum_size(self):
-        if self._size is None:
+        if self.size is None:
             return 0
         else:
-            return self._size
+            return self.size
     
     @property
     def maximum_size(self):
@@ -324,9 +334,13 @@ class StringListInput(Input):
         for _ in itertools.count():
             try:
                 value = self._input(prompt)
+                if self.pattern and not re.search(self.pattern, value):
+                    print('Invalid input! Ctrl-D to enter no value')
+                    continue
                 if not value:
                     value = None
             except EOFError:
+                print('')
                 value = None
             
             if value is None:
@@ -341,9 +355,41 @@ class StringListInput(Input):
             if len(values) == self.maximum_size:
                 return values
 
+class ConstInput(Input):
+    @classmethod
+    def type(cls):
+        return 'const'
+    
+    @classmethod
+    def default_allowed(cls):
+        return False
+    
+    @classmethod
+    def from_json(cls, obj):
+        kwargs = cls._get_base_kwargs_from_json(obj)
+        if 'value' not in obj:
+            raise SchemaError("value is required")
+        kwargs['value'] = obj['value']
+        return cls(**kwargs)
+    
+    def __init__(self, name, value,
+                 help=None):
+        super(ConstInput, self).__init__(
+            name,
+            help=help)
+        self.value = value
+    
+    def to_json(self):
+        return self._base_to_json()
+    
+    def _get_value(self, prompt):
+        return self.value
+    
 for input_cls in [
         StringInput,
         SecretInput,
         NumberInput,
+        StringListInput,
+        ConstInput,
         ]:
     Schema.INPUT_REGISTRY[input_cls.type()] = input_cls

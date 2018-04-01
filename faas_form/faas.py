@@ -12,7 +12,7 @@ import json
 import boto3
 from botocore.exceptions import ClientError
 
-from .requests import REQUEST_KEY, SCHEMA_REQUEST, INVOKE_REQUEST
+from . import payloads
 from .schema import Schema
 
 class RequestError(Exception):
@@ -22,11 +22,13 @@ class FaaSFunction(object):
     MARKER = 'faasform'
     
     @classmethod
-    def list(cls, tags=True, env=True):
+    def list(cls, tags=True, env=True, session=None):
+        session = session or boto3.session.Session()
+        
         funcs = {}
         
         if tags:
-            client = boto3.client('resourcegroupstaggingapi')
+            client = session.client('resourcegroupstaggingapi')
             paginator = client.get_paginator('get_resources')
             
             paginator_kwargs = {
@@ -51,7 +53,7 @@ class FaaSFunction(object):
                     funcs[name] = cls(arn, name=name, description=description)
         
         if env:
-            client = boto3.client('lambda')
+            client = session.client('lambda')
             paginator = client.get_paginator('list_functions')
             
             for response in paginator.paginate():
@@ -68,21 +70,24 @@ class FaaSFunction(object):
         return funcs
     
     @classmethod
-    def _get_arn(cls, name):
+    def _get_arn(cls, name, session=None):
         if name.startswith('arn'):
             return name
         
-        client = boto3.client('lambda')
+        session = session or boto3.session.Session()
+        client = session.client('lambda')
         response = client.get_function(
             FunctionName=name
         )
         return response['Configuration']['FunctionArn']
     
     @classmethod
-    def add(cls, name, description=None):
-        arn = cls._get_arn(name)
+    def add(cls, name, description=None, session=None):
+        session = session or boto3.session.Session()
         
-        client = boto3.client('resourcegroupstaggingapi')
+        arn = cls._get_arn(name, session=session)
+        
+        client = session.client('resourcegroupstaggingapi')
         
         client.tag_resources(
             ResourceARNList=[arn],
@@ -92,27 +97,29 @@ class FaaSFunction(object):
         )
     
     @classmethod
-    def remove(cls, name):
-        arn = cls._get_arn(name)
+    def remove(cls, name, session=None):
+        session = session or boto3.session.Session()
         
-        client = boto3.client('resourcegroupstaggingapi')
+        arn = cls._get_arn(name, session=session)
+        
+        client = session.client('resourcegroupstaggingapi')
         
         client.untag_resources(
             ResourceARNList=[arn],
             TagKeys=[cls.MARKER],
         )
     
-    def __init__(self, id, name=None, description=None):
+    def __init__(self, id, name=None, description=None, session=None):
         self.id = id
         self.name = name
         self.description = description
-    
-    def get_schema(self):
-        client = boto3.client('lambda')
+        self.session = session or boto3.session.Session()
         
-        payload = {
-            REQUEST_KEY: SCHEMA_REQUEST,
-        }
+    def get_schema(self):
+        client = self.session.client('lambda')
+        
+        payload = {}
+        payloads.set_schema_request(payload)
         
         response = client.invoke(
             FunctionName=self.id,
@@ -125,11 +132,10 @@ class FaaSFunction(object):
         return Schema.from_json(response_payload)
     
     def invoke(self, values):
-        client = boto3.client('lambda')
+        client = self.session.client('lambda')
         
-        payload = {
-            REQUEST_KEY: INVOKE_REQUEST,
-        }
+        payload = {}
+        payloads.set_invoke_request(payload)
         
         payload.update(values)
         

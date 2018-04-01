@@ -80,6 +80,8 @@ Like the string input, but will not echo when prompting the user, and does not a
   "size": <optional fixed size>,
   "pattern": <optional regex for entries>,
   "help": <optional help>
+}
+```
 
 ### Const inputs
 ```

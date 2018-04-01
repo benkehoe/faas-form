@@ -12,13 +12,16 @@ from abc import abstractmethod, ABCMeta
 import re
 import itertools
 
-from six.moves import input
+from . import getch
 
 __all__ = [
     'Schema',
     'StringInput',
     'SecretInput',
     'NumberInput',
+    'StringListInput',
+    'ConstInput',
+    'BooleanInput',
 ]
 
 class SchemaError(ValueError):
@@ -135,6 +138,7 @@ class Input(object):
     def _base_to_json(self, *args):
         obj = {
             'name': self.name,
+            'type': self.type(),
         }
         for field in ['required', 'default', 'help'] + list(args):
             value = getattr(self, field)
@@ -147,6 +151,7 @@ class Input(object):
         raise NotImplementedError
     
     def _input(self, prompt):
+        from six.moves import input
         return input(prompt)
     
     @abstractmethod
@@ -154,12 +159,12 @@ class Input(object):
         raise NotImplementedError
     
     def _properties_for_prompt(self):
-        parts = []
+        properties = []
         if self._required is not None or self.required:
-            parts.append('required={}'.format(self.required))
+            properties.append('required={}'.format(self.required))
         if self.default_allowed() and self.default is not None:
-            parts.append('default={}'.format(self.default))
-        return parts
+            properties.append('default={}'.format(self.default))
+        return properties
     
     def prompt(self):
         parts = [
@@ -262,26 +267,40 @@ class NumberInput(Input):
     @classmethod
     def from_json(cls, obj):
         kwargs = cls._get_base_kwargs_from_json(obj)
+        kwargs['integer'] = obj.get('integer')
         return cls(**kwargs)
     
     def __init__(self, name,
                  required=None,
                  default=None,
-                 help=None):
+                 help=None,
+                 integer=None):
         super(NumberInput, self).__init__(
             name,
             required=required,
             default=default,
             help=help)
-    
+        
+        self.integer = integer
+        
     def to_json(self):
-        return self._base_to_json()
+        return self._base_to_json('integer')
+    
+    def _properties_for_prompt(self):
+        properties = super(NumberInput, self)._properties_for_prompt()
+        if self.integer is True:
+            properties.append('integer={}'.format(self.integer))
+        return properties
     
     def _get_value(self, prompt):
         while True:
             value = self._input(prompt)
             try:
-                return float(value)
+                value = float(value)
+                if self.integer and not value.is_integer():
+                    print('Value must be an integer!')
+                    continue
+                return value
             except ValueError:
                 print('Invalid input! Ctrl-D to enter no value')
 
@@ -337,6 +356,7 @@ class StringListInput(Input):
         properties = super(StringListInput, self)._properties_for_prompt()
         if self.size is not None:
             properties.append('size={}'.format(self.size))
+        return properties
     
     def _get_value(self, prompt):
         values = []
@@ -376,6 +396,7 @@ class ConstInput(Input):
     @classmethod
     def from_json(cls, obj):
         kwargs = cls._get_base_kwargs_from_json(obj)
+        kwargs.pop('required', None) # Const is special
         if 'value' not in obj:
             raise SchemaError("value is required")
         kwargs['value'] = obj['value']
@@ -389,16 +410,50 @@ class ConstInput(Input):
         self.value = value
     
     def to_json(self):
-        return self._base_to_json()
+        return self._base_to_json('value')
     
     def _get_value(self, prompt):
         return self.value
+
+class BooleanInput(Input):
+    @classmethod
+    def type(cls):
+        return 'boolean'
     
+    @classmethod
+    def default_allowed(cls):
+        return False
+    
+    @classmethod
+    def from_json(cls, obj):
+        kwargs = cls._get_base_kwargs_from_json(obj)
+        return cls(**kwargs)
+    
+    def __init__(self, name,
+                 required=None,
+                 help=None):
+        super(BooleanInput, self).__init__(
+            name,
+            required=required,
+            help=help)
+    
+    def to_json(self):
+        return self._base_to_json()
+    
+    def _get_value(self, prompt):
+        while True:
+            value = getch.getch(prompt).lower()
+            if value not in ['y', 'n']:
+                print('Enter y/n')
+            else:
+                return value == 'y'
+
 for input_cls in [
         StringInput,
         SecretInput,
         NumberInput,
         StringListInput,
         ConstInput,
+        BooleanInput,
         ]:
     Schema.INPUT_REGISTRY[input_cls.type()] = input_cls

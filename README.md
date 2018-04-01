@@ -7,6 +7,8 @@ It does not aim to support arbitrarily complex input schemas, but it does suppor
 
 ## Creation
 
+See the `example_lambda.py` Lambda function handler (and correponding SAM template `example_template.yaml` to deploy it).
+
 A `faas-form`-compatible Lambda function is one that can report a simple schema for its input. When invoked with an event of the form:
 
 ```
@@ -53,7 +55,8 @@ The `const` input type can be useful in the scenario for keeping state between r
   "name": <input name>,
   "pattern": <optional regex>,
   "help": <optional help>,
-  "default": <optional default value>
+  "default": <optional default value>,
+  "required": <boolean, default is true>
 }
 ```
 The default value, if given, will be used when the user inputs an empty string.
@@ -64,7 +67,8 @@ The default value, if given, will be used when the user inputs an empty string.
   "type": "secret",
   "name": <input name>,
   "pattern": <optional regex>,
-  "help": <optional help>
+  "help": <optional help>,
+  "required": <boolean, default is true>
 }
 ```
 Like the string input, but will not echo when prompting the user, and does not accept a default.
@@ -74,8 +78,20 @@ Like the string input, but will not echo when prompting the user, and does not a
 {
   "type": "number",
   "name": <input name>,
+  "integer": <boolean indicating if integer values are required>,
   "help": <optional help>,
-  "default": <optional default value>
+  "default": <optional default value>,
+  "required": <boolean, default is true>
+}
+```
+
+### Boolean inputs
+```
+{
+  "type": "boolean",
+  "name": <input name>,
+  "help": <optional help>,
+  "required": <boolean, default is true>
 }
 ```
 
@@ -86,7 +102,8 @@ Like the string input, but will not echo when prompting the user, and does not a
   "name": <input name>,
   "size": <optional fixed size>,
   "pattern": <optional regex for entries>,
-  "help": <optional help>
+  "help": <optional help>,
+  "required": <boolean, default is true>
 }
 ```
 

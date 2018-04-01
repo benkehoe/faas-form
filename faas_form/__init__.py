@@ -7,5 +7,9 @@ def _get_version():
     return codecs.decode(pkg_resources.resource_string(__name__, '_version'),'utf-8').strip()
 __version__ = _get_version()
 
-from faas_form.payloads import is_schema_request, is_invoke_request, set_reinvoke_response, set_result
+from faas_form.payloads import (is_schema_request,
+                                set_schema_reponse,
+                                is_invoke_request,
+                                set_result,
+                                set_reinvoke_response)
 from .schema import *

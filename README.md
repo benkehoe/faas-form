@@ -126,10 +126,11 @@ The environment variable form is available for situations where tagging is not d
 ### Discovery
 
 ```bash
-faas-form ls [--tags] [--env]
+faas-form ls [--tags/--no-tags] [--env/--no-env]
 ```
 
-Lists the available `faas-form`-compatible Lambdas and their descriptions (if any). This will check for both tags and environment variables, unless one of the `--tags` or `--env` flags are set.
+Lists the available `faas-form`-compatible Lambdas and their descriptions (if any).
+By default, only checks tags. Use the flags to control whether it searches tags or environment variables.
 
 ### Invocation
 
@@ -137,15 +138,21 @@ Lists the available `faas-form`-compatible Lambdas and their descriptions (if an
 faas-form invoke FUNCTION_NAME
 ```
 
-Request the schema from the given function, prompt for the inputs, invoke the function, and print the response.
+Request the schema from the given function, prompt for the inputs, invoke the function, and print the response. Optionally, a schema can be provided with the `--schema` flag, which will cause the schema query step to be skipped.
 
 ### Development
 
 ```bash
-faas-form prompt SCHEMA [--output-file FILE]
+faas-form prompt --schema SCHEMA [--output-file FILE]
 ```
 
 Take the given schema, prompt for values, and print or store the resulting object. The schema object can have the top-level `x-faas-form-schema` key, or simply be the object that would be under that key.
+
+```bash
+faas-form prompt --function FUNCTION_NAME [--output-file FILE]
+```
+
+Query the given function for its schema, prompt for values, and print or store the resulting object.
 
 ### Admin
 
@@ -161,6 +168,12 @@ faas-form admin rm FUNCTION_NAME
 ```
 
 Remove the tag marking the given function as a `faas-form`-compatible Lambda. Note this does not work with Lambdas marked using environment variables.
+
+```bash
+faas-form admin show FUNCTION_NAME
+```
+
+Query the given function for its schema and print it.
 
 ## Status
 

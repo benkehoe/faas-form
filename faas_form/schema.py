@@ -57,6 +57,7 @@ class Schema(object):
     
     def to_json(self):
         obj = {
+            'schema_version': '2018-04-01',
             'inputs': [i.to_json() for i in self.inputs],
         }
         if self.instructions:

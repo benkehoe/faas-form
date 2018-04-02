@@ -24,6 +24,7 @@ The Lambda must return an object that looks like:
 ```
 {
   "x-faas-form-schema": {
+    "schema_version": "2018-04-01",
     "instructions": <optional description to print before user input>,
     "inputs": [
       ...

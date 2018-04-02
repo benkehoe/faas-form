@@ -5,6 +5,24 @@ It is intended to help developers and administrators provide interfaces to Lambd
 This allows Lambda functions to replace client-side scripts for interactions with resources running on AWS.
 It does not aim to support arbitrarily complex input schemas, but it does support multi-step workflows.
 
+## Quickstart
+```
+
+$ git clone https://github.com/benkehoe/faas-form.git faas-form
+$ cd faas-form
+
+$ aws cloudformation package --s3-bucket YOUR-BUCKET-NAME --template-file example_template.yaml --output-template-file example_template_packaged.yaml
+
+$ aws cloudformation deploy --template example_template_packaged.yaml --stack-name faas-form-example --capabilities CAPABILITY_IAM
+
+$ faas-form ls
+faas-form-example       an example faas-form compatible lambda function
+
+$ faas-form invoke faas-form-example
+Hello! Thanks for trying faas-form.
+name [string] Enter your name. Try "Merlin" to see advanced features (required=True):
+```
+
 ## Creation
 
 See the `example_lambda.py` Lambda function handler (and correponding SAM template `example_template.yaml` to deploy it).

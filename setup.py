@@ -18,7 +18,7 @@ requires = [
 ]
 
 setup(
-    name='awslogin',
+    name='faas-form',
     version=get_version('faas_form'),
     description='',
     author='Ben Kehoe',

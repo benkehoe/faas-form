@@ -2,6 +2,7 @@ import faas_form
 
 SIMPLE_SCHEMA = faas_form.Schema(
     [
+        faas_form.ConstInput('event_type', value='simple', help="The user doesn't see this"),
         faas_form.StringInput('name', required=True,
                               help='Enter your name. Try "Merlin" to see advanced features'),
     ],
@@ -10,16 +11,16 @@ SIMPLE_SCHEMA = faas_form.Schema(
 
 ADVANCED_SCHEMA = faas_form.Schema(
     [
+        faas_form.ConstInput('event_type', value='advanced', help="The user doesn't see this"),
         faas_form.StringInput('required', required=True, help='Try entering an empty string, or ctrl-D'),
         faas_form.StringInput('not_required', required=False, help='Try entering an empty string, or ctrl-D'),
         faas_form.StringInput('lowercase_only', pattern=r'^[a-z]$', help='Try entering upcase letters'),
         faas_form.StringInput('with_default', default='DEFAULT_VALUE', help='If you enter an empty string or ctrl-D, a default value will be used'),
         faas_form.SecretInput('shhh', help="Tell me a secret. I won't tell!"),
         faas_form.NumberInput('num', help="Enter a float"),
-        faas_form.NumberInput('num', integer=True, help="Try entering a non-integer value"),
+        faas_form.NumberInput('num_int', integer=True, help="Try entering a non-integer value"),
         faas_form.StringListInput('strings', help='Enter an empty string or ctrl-D to terminate the list'),
         faas_form.StringListInput('strings_with_size', size=2, help='This list has to have two elements'),
-        faas_form.ConstInput('constant', value=2.7, help="The user doesn't see this"),
         faas_form.BooleanInput('result', help="Hit y have the Lambda send a result string to display"),
         faas_form.BooleanInput('again', help="Would you like to go through this again?"),
     ],
@@ -33,7 +34,9 @@ def handler(event, context):
         print('Returning simple schema')
         response = {}
         faas_form.set_schema_reponse(response, SIMPLE_SCHEMA)
-    elif 'name' in event:
+    elif 'event_type' not in event:
+        raise ValueError("Input event is invalid!")
+    elif event['event_type'] == 'simple':
         print('Handling simple schema')
         response = handle_simple(event, context)
     else:

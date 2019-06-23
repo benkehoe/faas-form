@@ -51,14 +51,14 @@ def main(args=None):
     admin_parser = subparsers.add_parser('admin', help='Tag functions as faas-form compatible')
     admin_subparsers = admin_parser.add_subparsers()
     
-    add_parser = admin_subparsers.add_parser('add', help='Tag a function as faas-form compatible')
+    add_parser = admin_subparsers.add_parser('tag', help='Tag a function as faas-form compatible')
     add_parser.add_argument('name')
     add_parser.add_argument('--description')
-    add_parser.set_defaults(func=run_admin_add)
+    add_parser.set_defaults(func=run_admin_tag)
     
-    rm_parser = admin_subparsers.add_parser('rm', help='Untag a function as faas-form compatible')
+    rm_parser = admin_subparsers.add_parser('untag', help='Untag a function as faas-form compatible')
     rm_parser.add_argument('name')
-    rm_parser.set_defaults(func=run_admin_rm)
+    rm_parser.set_defaults(func=run_admin_untag)
     
     show_parser = admin_subparsers.add_parser('show', help='Print the schema for a function')
     show_parser.add_argument('name')
@@ -77,13 +77,15 @@ def run_list_funcs(parser, args):
     env = args.env
     return list_funcs(tags=tags, env=env)
 
-def list_funcs(tags=None, env=None):
+def list_funcs(tags=None, env=None, provider=None, session=None):
     if tags is None:
         tags = True
     if env is None:
         env = False
     
-    funcs = faas.FaaSFunction.list(tags=tags, env=env)
+    provider = provider or faas.LambdaProvider(session=session)
+    
+    funcs = provider.list(tags=tags, env=env)
     
     name_width = 0
     for func_name in six.iterkeys(funcs):
@@ -100,12 +102,12 @@ def run_invoke(parser, args):
     
     return invoke(name=args.name, schema=schema, disable_reinvoke=args.no_reinvoke)
 
-def invoke(name, schema=None, disable_reinvoke=False):
-    func = faas.FaaSFunction(name)
+def invoke(name, schema=None, disable_reinvoke=False, provider=None, session=None):
+    provider = provider or faas.LambdaProvider(session=session)
     
     if not schema:
         try:
-            schema = func.get_schema() # :type schema: faas_form.schema.Schema
+            schema = provider.get_schema(name) # :type schema: faas_form.schema.Schema
         except payloads.MissingSchemaError as e:
             err_msg = 'ERROR: No schema returned by the function'
             sys.exit(err_msg)
@@ -118,7 +120,7 @@ def invoke(name, schema=None, disable_reinvoke=False):
             sys.exit(1)
         
         try:
-            response = func.invoke(values)
+            response = provider.invoke(name, values)
             
             payload = json.load(response['Payload'])
             
@@ -149,23 +151,21 @@ def run_prompt(parser, args):
             schema  = schema[payloads.SCHEMA_KEY]
         schema = Schema.from_json(schema)
     
-    function = None
-    if args.function:
-        function = faas.FaaSFunction(args.function)
-    
     return prompt(schema=schema,
-                  function=function,
+                  function_name=args.function,
                   output_file=args.output_file)
 
-def prompt(schema=None, function=None, output_file=None):
-    if schema and function:
+def prompt(schema=None, function_name=None, output_file=None, provider=None, session=None):
+    if schema and function_name:
         raise ValueError("Can't specify both schema and function")
-    if not schema and not function:
+    if not schema and not function_name:
         raise ValueError("Must specify either schema or function")
     
-    if function:
+    if function_name:
+        provider = provider or faas.LambdaProvider(session=session)
+        
         try:
-            schema = function.get_schema() # :type schema: faas_form.schema.Schema
+            schema = provider.get_schema(function_name) # :type schema: faas_form.schema.Schema
         except payloads.MissingSchemaError as e:
             err_msg = 'ERROR: No schema returned by the function'
             sys.exit(err_msg)
@@ -181,24 +181,26 @@ def prompt(schema=None, function=None, output_file=None):
     else:
         print(json.dumps(values, indent=2))
 
-def run_admin_add(parser, args):
-    return admin_add(args.name, description=args.description)
+def run_admin_tag(parser, args):
+    return admin_tag(args.name, description=args.description)
 
-def admin_add(name, description=None):
-    return faas.FaaSFunction.add(name, description)
+def admin_tag(name, description=None, provider=None, session=None):
+    provider = provider or faas.LambdaProvider(session=session)
+    return provider.tag(name, description)
 
-def run_admin_rm(parser, args):
-    return admin_rm(args.name)
+def run_admin_untag(parser, args):
+    return admin_untag(args.name)
 
-def admin_rm(name):
-    faas.FaaSFunction.remove(name)
+def admin_untag(name, provider=None, session=None):
+    provider = provider or faas.LambdaProvider(session=session)
+    provider.untag(name)
 
 def run_admin_show(parser, args):
     return admin_show(args.name)
 
-def admin_show(name):
-    function = faas.FaaSFunction(name)
-    schema = function.get_schema()
+def admin_show(name, provider=None, session=None):
+    provider = provider or faas.LambdaProvider(session=session)
+    schema = provider.get_schema(name)
     
     print(json.dumps(schema.to_json(), indent=2))
 

@@ -10,6 +10,7 @@ It does not aim to support arbitrarily complex input schemas, but it does suppor
 
 $ git clone https://github.com/benkehoe/faas-form.git faas-form
 $ cd faas-form
+$ pip install --user .
 
 $ aws cloudformation package --s3-bucket YOUR-BUCKET-NAME --template-file example_template.yaml --output-template-file example_template_packaged.yaml
 
@@ -176,14 +177,14 @@ Query the given function for its schema, prompt for values, and print or store t
 ### Admin
 
 ```bash
-faas-form admin add FUNCTION_NAME [--description DESCRIPTION]
+faas-form admin tag FUNCTION_NAME [--description DESCRIPTION]
 ```
 
 Tag the given function as a `faas-form`-compatible Lambda, optionally with a short description.
 
 
 ```bash
-faas-form admin rm FUNCTION_NAME
+faas-form admin untag FUNCTION_NAME
 ```
 
 Remove the tag marking the given function as a `faas-form`-compatible Lambda. Note this does not work with Lambdas marked using environment variables.
